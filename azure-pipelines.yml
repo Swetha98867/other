@@ -3,7 +3,7 @@ trigger: none
 pool:
   name: "agent-project1"
   demands:
-  - Agent.Name -equals agent11
+  - Agent.Name -equals agent1
   
 steps:
 - script: echo "Hello Azure DevOps"
