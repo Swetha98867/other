@@ -1,0 +1,11 @@
+trigger: none
+
+pool:
+  name: "agent-project1"
+  demands
+  - Agent.Name -equals agent11
+  
+steps:
+- script: echo "Hello Azure DevOps"
+
+- script: echo "Pipeline executed successfully"
