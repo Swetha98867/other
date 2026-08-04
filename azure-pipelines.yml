@@ -2,7 +2,7 @@ trigger: none
 
 pool:
   name: "agent-project1"
-  demands
+  demands:
   - Agent.Name -equals agent11
   
 steps:
