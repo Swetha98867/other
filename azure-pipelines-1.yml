@@ -40,26 +40,26 @@ stages:
       inputs:
         terraformVersion: 'latest'
 
-    - script: |
-        cd q26-terraform
-        terraform init
-      displayName: Terraform Init
+    - task: AzureCLI@2
+      displayName: Terraform Init Plan Apply
+      inputs:
+        azureSubscription: 'q25-secure-azure'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          cd q26-terraform
 
-    - script: |
-        cd q26-terraform
-        terraform plan
-      displayName: Terraform Plan
+          echo "Terraform Init"
+          terraform init
 
-    - script: |
-        cd q26-terraform
-        terraform apply -auto-approve
-      displayName: Terraform Apply
+          echo "Terraform Plan"
+          terraform plan
 
-    - script: |
-        cd q26-terraform
-        echo "Terraform outputs:"
-        terraform output
-      displayName: Terraform Output
+          echo "Terraform Apply"
+          terraform apply -auto-approve
+
+          echo "Terraform Outputs"
+          terraform output
 
 
 # -------------------------
