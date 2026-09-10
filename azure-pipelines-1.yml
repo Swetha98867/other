@@ -72,6 +72,23 @@ stages:
 
     steps:
 
+    - checkout: self
+
+    - script: |
+        echo "Source directory:"
+        echo "$(Build.SourcesDirectory)"
+
+        echo "Repository contents:"
+        ls -la "$(Build.SourcesDirectory)"
+
+        echo "q26-terraform contents:"
+        ls -la "$(Build.SourcesDirectory)/q26-terraform"
+
+        echo "Helm chart contents:"
+        ls -la "$(Build.SourcesDirectory)/q26-terraform/q26-helm"
+
+      displayName: Check Repository
+
     - script: |
         echo "Terraform succeeded."
         echo "VM Name received from Terraform:"
@@ -79,14 +96,7 @@ stages:
       displayName: Show Terraform Output
 
     - script: |
-        echo "Source directory:"
-        echo "$(Build.SourcesDirectory)"
-
-        echo "Checking Helm chart:"
-        ls -la "$(Build.SourcesDirectory)/q26-terraform/q26-helm"
-
         helm version
-
         helm lint "$(Build.SourcesDirectory)/q26-terraform/q26-helm"
       displayName: Helm Lint
 
