@@ -74,16 +74,26 @@ stages:
 
     - script: |
         echo "Terraform succeeded."
-        echo "VM Name from Terraform: $(vmNameFromTerraform)"
+        echo "VM Name received from Terraform:"
+        echo "$(vmNameFromTerraform)"
       displayName: Show Terraform Output
 
     - script: |
-        echo "Current directory:"
-        pwd
+        CHART_DIR=$(dirname "$(find . -name Chart.yaml -print -quit)")
 
-        echo "Repository contents:"
-        find . -maxdepth 4 -type f | sort
+        echo "Helm chart found at:"
+        echo "$CHART_DIR"
 
-        echo "Searching for Chart.yaml:"
-        find . -name Chart.yaml -print
-      displayName: Find Helm Chart
+        helm version
+
+        helm lint "$CHART_DIR"
+      displayName: Helm Lint
+
+    - script: |
+        CHART_DIR=$(dirname "$(find . -name Chart.yaml -print -quit)")
+
+        echo "Deploying Helm chart from:"
+        echo "$CHART_DIR"
+
+        helm upgrade --install q26-app "$CHART_DIR"
+      displayName: Helm Deploy
