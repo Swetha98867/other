@@ -60,7 +60,6 @@ stages:
 
 - stage: Helm
   displayName: Helm Deploy
-
   dependsOn: Terraform
   condition: succeeded()
 
@@ -72,14 +71,17 @@ stages:
     displayName: Helm Deployment
 
     steps:
+
     - script: |
         echo "Terraform succeeded."
-        echo "VM name received from Terraform:"
-        echo "$(vmNameFromTerraform)"
+        echo "VM Name from Terraform: $(vmNameFromTerraform)"
+      displayName: Show Terraform Output
 
-        echo "Starting Helm deployment..."
-
+    - script: |
         helm version
+        helm lint q26-helm
+      displayName: Helm Lint
 
-        echo "Helm deployment completed successfully."
+    - script: |
+        helm upgrade --install q26-app ./q26-helm
       displayName: Helm Deploy
