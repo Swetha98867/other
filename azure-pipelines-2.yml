@@ -5,13 +5,11 @@ pool:
 
 stages:
 
-# ==================================================
-# STAGE 1 - BUILD
-# ==================================================
-
+# =========================================================
+# 1. BUILD STAGE
+# =========================================================
 - stage: Build
   displayName: Build
-
   jobs:
   - job: BuildJob
     displayName: Build Application
@@ -21,17 +19,15 @@ stages:
 
     - script: |
         echo "Build stage started"
-        echo "Build completed successfully"
+        echo "Application build completed"
       displayName: Build
 
 
-# ==================================================
-# STAGE 2 - TERRAFORM
-# ==================================================
-
+# =========================================================
+# 2. TERRAFORM STAGE
+# =========================================================
 - stage: Terraform
-  displayName: Terraform
-
+  displayName: Terraform Provisioning
   dependsOn: Build
   condition: succeeded()
 
@@ -42,15 +38,16 @@ stages:
     steps:
     - checkout: self
 
+    # Install Terraform
     - task: TerraformInstaller@1
       displayName: Install Terraform
       inputs:
-        terraformVersion: latest
+        terraformVersion: 'latest'
 
+    # Authenticate with Azure
     - task: AzureCLI@2
       name: terraformOutput
-      displayName: Terraform Init Plan Apply Output
-
+      displayName: Terraform Init Plan Apply
       inputs:
         azureSubscription: 'q25-secure-azure'
         scriptType: bash
@@ -59,9 +56,9 @@ stages:
 
         inlineScript: |
 
-          echo "================================="
+          echo "================================"
           echo "Azure Authentication"
-          echo "================================="
+          echo "================================"
 
           export ARM_CLIENT_ID="$servicePrincipalId"
           export ARM_CLIENT_SECRET="$servicePrincipalKey"
@@ -70,27 +67,27 @@ stages:
 
           cd "$(Build.SourcesDirectory)/q26-terraform"
 
-          echo "================================="
+          echo "================================"
           echo "Terraform Init"
-          echo "================================="
+          echo "================================"
 
           terraform init
 
-          echo "================================="
+          echo "================================"
           echo "Terraform Plan"
-          echo "================================="
+          echo "================================"
 
           terraform plan
 
-          echo "================================="
+          echo "================================"
           echo "Terraform Apply"
-          echo "================================="
+          echo "================================"
 
           terraform apply -auto-approve
 
-          echo "================================="
+          echo "================================"
           echo "Terraform Outputs"
-          echo "================================="
+          echo "================================"
 
           VM_NAME=$(terraform output -raw vm_name)
           VM_PUBLIC_IP=$(terraform output -raw vm_public_ip)
@@ -98,23 +95,22 @@ stages:
           echo "VM Name: $VM_NAME"
           echo "VM Public IP: $VM_PUBLIC_IP"
 
+          # Pass Terraform outputs to next stage
           echo "##vso[task.setvariable variable=vmName;isOutput=true]$VM_NAME"
-
           echo "##vso[task.setvariable variable=vmPublicIP;isOutput=true]$VM_PUBLIC_IP"
 
 
-# ==================================================
-# STAGE 3 - HELM
-# ==================================================
-
+# =========================================================
+# 3. HELM STAGE
+# =========================================================
 - stage: Helm
   displayName: Helm Deploy
-
   dependsOn: Terraform
   condition: succeeded()
 
   variables:
 
+    # Get Terraform output variables
     vmNameFromTerraform: $[ stageDependencies.Terraform.TerraformJob.outputs['terraformOutput.vmName'] ]
 
     vmIPFromTerraform: $[ stageDependencies.Terraform.TerraformJob.outputs['terraformOutput.vmPublicIP'] ]
@@ -127,82 +123,44 @@ stages:
     - checkout: self
 
     - script: |
-        echo "================================="
-        echo "Terraform Output"
-        echo "================================="
+        echo "================================"
+        echo "Helm Stage"
+        echo "================================"
 
-        echo "VM Name:"
+        echo "Terraform succeeded."
+
+        echo "VM Name received from Terraform:"
         echo "$(vmNameFromTerraform)"
 
-        echo "VM Public IP:"
+        echo "VM Public IP received from Terraform:"
         echo "$(vmIPFromTerraform)"
-      displayName: Show Terraform Output
 
+        echo "================================"
+        echo "Checking Helm"
+        echo "================================"
 
-    - task: AzureCLI@2
-      displayName: Connect to AKS and Deploy Helm
-      inputs:
-        azureSubscription: 'q25-secure-azure'
-        scriptType: bash
-        scriptLocation: inlineScript
+        helm version
 
-        inlineScript: |
+        echo "================================"
+        echo "Helm Chart"
+        echo "================================"
 
-          echo "================================="
-          echo "Find AKS Cluster"
-          echo "================================="
+        ls -R "$(Build.SourcesDirectory)/q26-terraform/q26-helm"
 
-          AKS_NAME=$(az aks list \
-            --resource-group swe-rg \
-            --query "[0].name" \
-            --output tsv)
+        echo "================================"
+        echo "Helm Lint"
+        echo "================================"
 
-          echo "AKS Cluster: $AKS_NAME"
+        helm lint "$(Build.SourcesDirectory)/q26-terraform/q26-helm"
 
+        echo "================================"
+        echo "Helm Package"
+        echo "================================"
 
-          echo "================================="
-          echo "Get AKS Credentials"
-          echo "================================="
+        helm package "$(Build.SourcesDirectory)/q26-terraform/q26-helm"
 
-          az aks get-credentials \
-            --resource-group swe-rg \
-            --name "$AKS_NAME" \
-            --overwrite-existing
+        echo "================================"
+        echo "Helm stage completed"
+        echo "================================"
 
-
-          echo "================================="
-          echo "Check Kubernetes"
-          echo "================================="
-
-          kubectl get nodes
-
-
-          echo "================================="
-          echo "Helm Version"
-          echo "================================="
-
-          helm version
-
-
-          echo "================================="
-          echo "Helm Lint"
-          echo "================================="
-
-          helm lint "$(Build.SourcesDirectory)/q26-terraform/q26-helm"
-
-
-          echo "================================="
-          echo "Helm Deploy"
-          echo "================================="
-
-          helm upgrade --install q26-app \
-            "$(Build.SourcesDirectory)/q26-terraform/q26-helm"
-
-
-          echo "================================="
-          echo "Deployment Status"
-          echo "================================="
-
-          kubectl get deployment q26-app
-
-          kubectl get pods
+      displayName: Helm Validate and Package
