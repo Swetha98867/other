@@ -60,16 +60,26 @@ stages:
 
 - stage: Helm
   displayName: Helm Deploy
+
   dependsOn: Terraform
   condition: succeeded()
 
+  variables:
+    vmNameFromTerraform: $[ stageDependencies.Terraform.TerraformJob.outputs['terraformOutput.vmName'] ]
+
   jobs:
   - job: HelmJob
+    displayName: Helm Deployment
 
     steps:
     - script: |
-        echo "Terraform succeeded"
-        echo "Starting Helm deployment"
+        echo "Terraform succeeded."
+        echo "VM name received from Terraform:"
+        echo "$(vmNameFromTerraform)"
+
+        echo "Starting Helm deployment..."
+
         helm version
-        echo "Helm deployment completed"
+
+        echo "Helm deployment completed successfully."
       displayName: Helm Deploy
