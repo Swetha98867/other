@@ -1,0 +1,35 @@
+trigger: none
+
+resources:
+  pipelines:
+  - pipeline: appci
+    source: App-CI
+    trigger: true
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+- stage: Deploy
+  displayName: Deploy
+
+  jobs:
+  - job: DeployJob
+
+    steps:
+
+    - download: appci
+      artifact: app-package
+
+    - script: |
+        echo "Downloaded artifact:"
+        ls -R $(Pipeline.Workspace)/appci/app-package
+
+        echo "Deploying application..."
+
+        cat $(Pipeline.Workspace)/appci/app-package/app.txt
+
+        echo "Application deployed successfully"
+
+      displayName: Deploy application
