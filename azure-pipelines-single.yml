@@ -1,0 +1,51 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+- stage: Build
+  displayName: Build
+
+  jobs:
+  - job: BuildJob
+
+    steps:
+    - script: |
+        echo "Building application..."
+        mkdir -p output
+        echo "Hello from Azure DevOps" > output/app.txt
+      displayName: Build application
+
+
+- stage: Test
+  displayName: Test
+
+  dependsOn: Build
+
+  jobs:
+  - job: TestJob
+
+    steps:
+    - script: |
+        echo "Running tests..."
+        echo "Tests passed"
+      displayName: Run tests
+
+
+- stage: Deploy
+  displayName: Deploy
+
+  dependsOn: Test
+
+  jobs:
+  - job: DeployJob
+
+    steps:
+    - script: |
+        echo "Deploying application..."
+        echo "Application deployed successfully"
+      displayName: Deploy application
+
