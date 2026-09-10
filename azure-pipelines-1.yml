@@ -1,0 +1,82 @@
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+# -------------------------
+# Stage 1: Build
+# -------------------------
+- stage: Build
+  displayName: Build
+
+  jobs:
+  - job: BuildJob
+    displayName: Build application
+
+    steps:
+    - script: |
+        echo "Build stage started"
+        echo "Application build completed"
+      displayName: Build
+
+
+# -------------------------
+# Stage 2: Terraform
+# -------------------------
+- stage: Terraform
+  displayName: Terraform
+  dependsOn: Build
+
+  jobs:
+  - job: TerraformJob
+    displayName: Terraform Init Plan Apply
+
+    steps:
+
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: 'latest'
+
+    - script: |
+        cd q26-terraform
+        terraform init
+      displayName: Terraform Init
+
+    - script: |
+        cd q26-terraform
+        terraform plan
+      displayName: Terraform Plan
+
+    - script: |
+        cd q26-terraform
+        terraform apply -auto-approve
+      displayName: Terraform Apply
+
+    - script: |
+        cd q26-terraform
+        echo "Terraform outputs:"
+        terraform output
+      displayName: Terraform Output
+
+
+# -------------------------
+# Stage 3: Helm
+# -------------------------
+- stage: Helm
+  displayName: Helm Deploy
+  dependsOn: Terraform
+  condition: succeeded()
+
+  jobs:
+  - job: HelmJob
+    displayName: Helm Deployment
+
+    steps:
+    - script: |
+        echo "Terraform succeeded."
+        echo "Starting Helm deployment..."
+        echo "Helm deployment completed successfully."
+      displayName: Helm Deploy
