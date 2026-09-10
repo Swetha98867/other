@@ -1,11 +1,41 @@
-trigger: none
+trigger:
+- main
 
-pool:
-  name: "agent-project1"
-  demands:
-  - Agent.Name -equals agent1
-  
-steps:
-- script: echo "Hello Azure DevOps"
+stages:
 
-- script: echo "Pipeline executed successfully"
+- stage: Build
+  displayName: Build
+  jobs:
+  - job: BuildJob
+    steps:
+    - script: |
+        echo "Build started"
+        sleep 20
+        echo "Build completed"
+      displayName: Build
+
+- stage: QA
+  displayName: QA
+  jobs:
+  - job: QAJob
+    steps:
+    - script: |
+        echo "QA started"
+        sleep 30
+        echo "QA completed"
+      displayName: QA
+
+- stage: Production
+  displayName: Production
+  jobs:
+  - deployment: DeployProduction
+    environment: production
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - script: |
+              echo "Production deployment started"
+              sleep 60
+              echo "Production deployment completed"
+            displayName: Deploy
