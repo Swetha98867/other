@@ -79,9 +79,9 @@ stages:
 
     - script: |
         helm version
-        helm lint q26-helm
+        helm lint q26-terraform/q26-helm
       displayName: Helm Lint
 
     - script: |
-        helm upgrade --install q26-app ./q26-helm
+        helm upgrade --install q26-app ./q26-terraform/q26-helm
       displayName: Helm Deploy
