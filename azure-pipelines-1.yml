@@ -5,40 +5,31 @@ pool:
 
 stages:
 
-# -------------------------
-# Stage 1: Build
-# -------------------------
 - stage: Build
   displayName: Build
 
   jobs:
   - job: BuildJob
-    displayName: Build application
-
     steps:
     - script: |
         echo "Build stage started"
-        echo "Application build completed"
+        echo "Build completed"
       displayName: Build
 
 
-# -------------------------
-# Stage 2: Terraform
-# -------------------------
 - stage: Terraform
   displayName: Terraform
   dependsOn: Build
 
   jobs:
   - job: TerraformJob
-    displayName: Terraform Init Plan Apply
 
     steps:
 
     - task: TerraformInstaller@1
       displayName: Install Terraform
       inputs:
-        terraformVersion: 'latest'
+        terraformVersion: latest
 
     - task: AzureCLI@2
       displayName: Terraform Init Plan Apply
@@ -58,13 +49,10 @@ stages:
           echo "Terraform Apply"
           terraform apply -auto-approve
 
-          echo "Terraform Outputs"
+          echo "Terraform Output"
           terraform output
 
 
-# -------------------------
-# Stage 3: Helm
-# -------------------------
 - stage: Helm
   displayName: Helm Deploy
   dependsOn: Terraform
@@ -72,11 +60,11 @@ stages:
 
   jobs:
   - job: HelmJob
-    displayName: Helm Deployment
 
     steps:
     - script: |
-        echo "Terraform succeeded."
-        echo "Starting Helm deployment..."
-        echo "Helm deployment completed successfully."
+        echo "Terraform succeeded"
+        echo "Starting Helm deployment"
+        helm version
+        echo "Helm deployment completed"
       displayName: Helm Deploy
