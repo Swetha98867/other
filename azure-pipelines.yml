@@ -1,40 +1,25 @@
 trigger: none
 
-stages:
+pool:
+  vmImage: ubuntu-latest
 
-- stage: Build
-  displayName: Build
-  jobs:
-  - job: BuildJob
-    steps:
-    - script: |
-        echo "Build started"
-        sleep 20
-        echo "Build completed"
-      displayName: Build
+steps:
 
-- stage: QA
-  displayName: QA
-  jobs:
-  - job: QAJob
-    steps:
-    - script: |
-        echo "QA started"
-        sleep 30
-        echo "QA completed"
-      displayName: QA
+- task: AzureCLI@2
+  displayName: Test Azure Service Connection
+  inputs:
+    azureSubscription: 'q25-secure-azure'
+    scriptType: bash
+    scriptLocation: inlineScript
+    inlineScript: |
+      echo "Testing Azure authentication..."
 
-- stage: Production
-  displayName: Production
-  jobs:
-  - deployment: DeployProduction
-    environment: production
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - script: |
-              echo "Production deployment started"
-              sleep 60
-              echo "Production deployment completed"
-            displayName: Deploy
+      az account show
+
+      echo "Testing Resource Group access..."
+
+      az group show \
+        --name "resource-grp1" \
+        --output table
+
+      echo "Service connection test successful."
