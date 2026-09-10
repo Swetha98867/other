@@ -1,0 +1,208 @@
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+
+# ==================================================
+# STAGE 1 - BUILD
+# ==================================================
+
+- stage: Build
+  displayName: Build
+
+  jobs:
+  - job: BuildJob
+    displayName: Build Application
+
+    steps:
+    - checkout: self
+
+    - script: |
+        echo "Build stage started"
+        echo "Build completed successfully"
+      displayName: Build
+
+
+# ==================================================
+# STAGE 2 - TERRAFORM
+# ==================================================
+
+- stage: Terraform
+  displayName: Terraform
+
+  dependsOn: Build
+  condition: succeeded()
+
+  jobs:
+  - job: TerraformJob
+    displayName: Terraform Init Plan Apply
+
+    steps:
+    - checkout: self
+
+    - task: TerraformInstaller@1
+      displayName: Install Terraform
+      inputs:
+        terraformVersion: latest
+
+    - task: AzureCLI@2
+      name: terraformOutput
+      displayName: Terraform Init Plan Apply Output
+
+      inputs:
+        azureSubscription: 'q25-secure-azure'
+        scriptType: bash
+        scriptLocation: inlineScript
+        addSpnToEnvironment: true
+
+        inlineScript: |
+
+          echo "================================="
+          echo "Azure Authentication"
+          echo "================================="
+
+          export ARM_CLIENT_ID="$servicePrincipalId"
+          export ARM_CLIENT_SECRET="$servicePrincipalKey"
+          export ARM_TENANT_ID="$tenantId"
+          export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+          cd "$(Build.SourcesDirectory)/q26-terraform"
+
+          echo "================================="
+          echo "Terraform Init"
+          echo "================================="
+
+          terraform init
+
+          echo "================================="
+          echo "Terraform Plan"
+          echo "================================="
+
+          terraform plan
+
+          echo "================================="
+          echo "Terraform Apply"
+          echo "================================="
+
+          terraform apply -auto-approve
+
+          echo "================================="
+          echo "Terraform Outputs"
+          echo "================================="
+
+          VM_NAME=$(terraform output -raw vm_name)
+          VM_PUBLIC_IP=$(terraform output -raw vm_public_ip)
+
+          echo "VM Name: $VM_NAME"
+          echo "VM Public IP: $VM_PUBLIC_IP"
+
+          echo "##vso[task.setvariable variable=vmName;isOutput=true]$VM_NAME"
+
+          echo "##vso[task.setvariable variable=vmPublicIP;isOutput=true]$VM_PUBLIC_IP"
+
+
+# ==================================================
+# STAGE 3 - HELM
+# ==================================================
+
+- stage: Helm
+  displayName: Helm Deploy
+
+  dependsOn: Terraform
+  condition: succeeded()
+
+  variables:
+
+    vmNameFromTerraform: $[ stageDependencies.Terraform.TerraformJob.outputs['terraformOutput.vmName'] ]
+
+    vmIPFromTerraform: $[ stageDependencies.Terraform.TerraformJob.outputs['terraformOutput.vmPublicIP'] ]
+
+  jobs:
+  - job: HelmJob
+    displayName: Helm Deployment
+
+    steps:
+    - checkout: self
+
+    - script: |
+        echo "================================="
+        echo "Terraform Output"
+        echo "================================="
+
+        echo "VM Name:"
+        echo "$(vmNameFromTerraform)"
+
+        echo "VM Public IP:"
+        echo "$(vmIPFromTerraform)"
+      displayName: Show Terraform Output
+
+
+    - task: AzureCLI@2
+      displayName: Connect to AKS and Deploy Helm
+      inputs:
+        azureSubscription: 'q25-secure-azure'
+        scriptType: bash
+        scriptLocation: inlineScript
+
+        inlineScript: |
+
+          echo "================================="
+          echo "Find AKS Cluster"
+          echo "================================="
+
+          AKS_NAME=$(az aks list \
+            --resource-group swe-rg \
+            --query "[0].name" \
+            --output tsv)
+
+          echo "AKS Cluster: $AKS_NAME"
+
+
+          echo "================================="
+          echo "Get AKS Credentials"
+          echo "================================="
+
+          az aks get-credentials \
+            --resource-group swe-rg \
+            --name "$AKS_NAME" \
+            --overwrite-existing
+
+
+          echo "================================="
+          echo "Check Kubernetes"
+          echo "================================="
+
+          kubectl get nodes
+
+
+          echo "================================="
+          echo "Helm Version"
+          echo "================================="
+
+          helm version
+
+
+          echo "================================="
+          echo "Helm Lint"
+          echo "================================="
+
+          helm lint "$(Build.SourcesDirectory)/q26-terraform/q26-helm"
+
+
+          echo "================================="
+          echo "Helm Deploy"
+          echo "================================="
+
+          helm upgrade --install q26-app \
+            "$(Build.SourcesDirectory)/q26-terraform/q26-helm"
+
+
+          echo "================================="
+          echo "Deployment Status"
+          echo "================================="
+
+          kubectl get deployment q26-app
+
+          kubectl get pods
